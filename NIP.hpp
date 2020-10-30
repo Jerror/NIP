@@ -1,7 +1,7 @@
 #ifndef NIP_H
 #define NIP_H
 
-#include <cstdlib>
+#include <cmath> // fabs
 #include <functional>
 
 enum NIP_ROOT_FLAG { NIP_SUCCESS = 0,
@@ -37,7 +37,7 @@ struct SecantIterGen {
         T tmp = state.x - f(state.x) * (state.x - state.xprev) / (f(state.x) - f(state.xprev));
         state.xprev = state.x;
         state.x = tmp;
-        state.est_err = abs((state.x - state.xprev) / state.x);
+        state.est_err = fabs((state.x - state.xprev) / state.x);
         state.f_calls += 3;
         return state.est_err;
     }
@@ -58,7 +58,7 @@ struct NewtonRaphsonIterGen {
     {
         state.xprev = state.x;
         state.x = state.xprev - f(state.xprev) / fprime(state.xprev);
-        state.est_err = abs((state.x - state.xprev) / state.x);
+        state.est_err = fabs((state.x - state.xprev) / state.x);
         state.f_calls += 2;
         return state.est_err;
     }
@@ -83,7 +83,7 @@ struct HalleyIterGen {
         state.xprev = state.x;
         T f_fp = f(state.xprev) / fprime(state.xprev);
         state.x = state.xprev - f_fp / (1 - f_fp * fprime2(state.xprev) / fprime(state.xprev) / 2);
-        state.est_err = abs((state.x - state.xprev) / state.x);
+        state.est_err = fabs((state.x - state.xprev) / state.x);
         state.f_calls += 4;
         return state.est_err;
     }
