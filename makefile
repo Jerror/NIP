@@ -11,8 +11,5 @@ CXXFLAGS = -Wall -I$(INC_DIR) $(CXXFLAGS_ADD) $(NDEBUG) $(WARN) -pipe
 
 all: main
 
-main: main.cpp NIP.o
-	g++ $(CXXFLAGS) -o $@ main.cpp NIP.o
-
-NIP.o: NIP.cpp NIP.hpp
-	g++ $(CXXFLAGS) -c NIP.cpp
+main: main.cpp NIP.hpp
+	g++ $(CXXFLAGS) -o $@ main.cpp 

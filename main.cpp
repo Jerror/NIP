@@ -2,13 +2,13 @@
 #include <iostream>
 
 template <typename T>
-T cubic(T x) { return x * x * x + x * x + x + 1; }
+T cubic(T x) { return x * x * x - x * x - x - 1; }
 
 template <typename T>
-T cubic_p(T x) { return 3 * x * x + 2 * x + 1; }
+T cubic_p(T x) { return 3 * x * x - 2 * x - 1; }
 
 template <typename T>
-T cubic_pp(T x) { return 6 * x + 2; }
+T cubic_pp(T x) { return 6 * x - 2; }
 
 template <typename T> void test_NIP(int maxiter, T tol) {
   NewtonIterativeProcedure<T> *NIP;
