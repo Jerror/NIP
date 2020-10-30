@@ -138,6 +138,7 @@ public:
             method_iter_gen(state);
             if (state.est_err <= tol) {
                 flag = NIP_SUCCESS;
+                ++iterations;
                 break;
             }
         }
