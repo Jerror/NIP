@@ -1,8 +1,8 @@
 #ifndef NIP_H
 #define NIP_H
 
+#include <cstdlib>
 #include <functional>
-#include <iostream>
 
 enum NIP_ROOT_FLAG { NIP_SUCCESS = 0,
     NIP_CONVERR = -1 };
@@ -32,7 +32,7 @@ struct SecantIterGen {
     {
     }
 
-    T operator()(IterResults<T> & state)
+    T operator()(IterResults<T>& state)
     {
         T tmp = state.x - f(state.x) * (state.x - state.xprev) / (f(state.x) - f(state.xprev));
         state.xprev = state.x;
@@ -54,7 +54,7 @@ struct NewtonRaphsonIterGen {
     {
     }
 
-    T operator()(IterResults<T> & state)
+    T operator()(IterResults<T>& state)
     {
         state.xprev = state.x;
         state.x = state.xprev - f(state.xprev) / fprime(state.xprev);
@@ -78,7 +78,7 @@ struct HalleyIterGen {
     {
     }
 
-    T operator()(IterResults<T> & state)
+    T operator()(IterResults<T>& state)
     {
         state.xprev = state.x;
         T f_fp = f(state.xprev) / fprime(state.xprev);
@@ -93,19 +93,21 @@ template <typename T>
 class NewtonIterativeProcedure {
 
     IterResults<T> state;
-    std::function<void(IterResults<T> &)> method_iter_gen;
+    std::function<void(IterResults<T>&)> method_iter_gen;
     int iterations = 0;
 
 public:
     // Custom method constructor
-    NewtonIterativeProcedure(IterResults<T> state_, std::function<void(IterResults<T> &)> method_iter_gen_)
-        : state{ state_ }, method_iter_gen { method_iter_gen_ }
+    NewtonIterativeProcedure(IterResults<T> state_, std::function<void(IterResults<T>&)> method_iter_gen_)
+        : state { state_ }
+        , method_iter_gen { method_iter_gen_ }
     {
     }
 
     // Secant method constructors
     NewtonIterativeProcedure(std::function<T(T)> f, T x0, T x1)
-        : state{ x0, x1, 1, 0}, method_iter_gen { SecantIterGen<T>(f) }
+        : state { x0, x1, 1, 0 }
+        , method_iter_gen { SecantIterGen<T>(f) }
     {
     }
     NewtonIterativeProcedure(std::function<T(T)> f, T x0)
@@ -117,13 +119,15 @@ public:
     // Newton-Raphson method constructor
     NewtonIterativeProcedure(std::function<T(T)> f, std::function<T(T)> fprime,
         T x0)
-        : state{ x0, x0, 1, 0 }, method_iter_gen { NewtonRaphsonIterGen<T>(f, fprime) }
+        : state { x0, x0, 1, 0 }
+        , method_iter_gen { NewtonRaphsonIterGen<T>(f, fprime) }
     {
     }
 
     // Halley's method constructor
     NewtonIterativeProcedure(std::function<T(T)> f, std::function<T(T)> fprime, std::function<T(T)> fprime2, T x0)
-        : state{ x0, x0, 1, 0 }, method_iter_gen { HalleyIterGen<T>(f, fprime, fprime2) }
+        : state { x0, x0, 1, 0 }
+        , method_iter_gen { HalleyIterGen<T>(f, fprime, fprime2) }
     {
     }
 
