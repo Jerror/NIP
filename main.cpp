@@ -5,7 +5,8 @@
 #include <iomanip>
 #include <iostream>
 
-#define co 2.99792458e8 // Speed of ligth in vacuum [m/s]
+// #define co 2.99792458e8 // Speed of ligth in vacuum [m/s]
+#define co 1.0 // Naturalized
 
 template <typename T>
 T cubic(T x) { return x * x * x - x * x - x - 1; }
@@ -47,9 +48,9 @@ void test_NIP(T x0, int maxiter, int prec)
 
 double disp3_k(double k, double w, double* khat, double* dxyzt)
 {
-    double ret = pow(sin(w * dxyzt[0] / 2) / dxyzt[0] / co, 2);
+    double ret = pow(sin(w * dxyzt[3] / 2) / dxyzt[3] / co, 2);
     for (int i = 0; i < 3; ++i) {
-        ret -= pow(sin(k * khat[i] * dxyzt[i + 1] / 2) / dxyzt[i + 1], 2);
+        ret -= pow(sin(k * khat[i] * dxyzt[i] / 2) / dxyzt[i], 2);
     }
     return ret;
 }
@@ -58,7 +59,7 @@ double disp3_k_p(double k, double* khat, double* dxyzt)
 {
     double ret = 0;
     for (int i = 0; i < 3; ++i) {
-        ret -= khat[i] * sin(k * khat[i] * dxyzt[i + 1]) / dxyzt[i];
+        ret -= khat[i] * sin(k * khat[i] * dxyzt[i]) / dxyzt[i];
     }
     return ret / 2;
 }
@@ -67,7 +68,7 @@ double disp3_k_pp(double k, double* khat, double* dxyzt)
 {
     double ret = 0;
     for (int i = 0; i < 3; ++i) {
-        ret -= khat[i] * khat[i] * cos(k * khat[i] * dxyzt[i + 1]);
+        ret -= khat[i] * khat[i] * cos(k * khat[i] * dxyzt[i]);
     }
     return ret / 2;
 }
@@ -89,6 +90,36 @@ double disp1_d_pp(double d, double k)
     return ((6 - d * d * k * k) * cos(k * d) + 4 * d * k * sin(d * k) - 6) / (2 * d * d * d * d);
 }
 
+double findroot(std::function<double(double)> f,
+    std::function<double(double)> fp,
+    std::function<double(double)> fpp, double x0, int maxiter, int prec)
+{
+    double tol = pow(10, -prec);
+    RootResults<double> res;
+    NewtonIterativeProcedure<double>* solver;
+
+    solver = new NewtonIterativeProcedure<double>(f, fp, fpp, x0);
+    res = solver->solve(maxiter, tol);
+    print_res(res, prec);
+    if (res.flag != NIP_SUCCESS) {
+        std::cout << "Halley's method failed to converge, trying something else" << std::endl;
+        solver = new NewtonIterativeProcedure<double>(f, fp, x0);
+        res = solver->solve(maxiter, tol);
+        print_res(res, prec);
+        if (res.flag != NIP_SUCCESS) {
+            std::cout << "Newton's method failed to converge, trying something else" << std::endl;
+            solver = new NewtonIterativeProcedure<double>(f, x0);
+            res = solver->solve(maxiter, tol);
+            print_res(res, prec);
+            if (res.flag != NIP_SUCCESS) {
+                std::cerr << "Secant method failed to converge, giving up" << std::endl;
+                abort();
+            }
+        }
+    }
+    return res.root;
+}
+
 int main(int argc, char* argv[])
 {
     std::cout << "float" << std::endl;
@@ -98,39 +129,46 @@ int main(int argc, char* argv[])
     std::cout << "long double" << std::endl;
     test_NIP<long double>(1.5, 80, 32);
 
-    double th = M_PI;
-    double ph = M_PI / 2;
-    double dx = 60e-9;
+    std::cout << std::endl
+              << std::endl
+              << "Dispersion matching" << std::endl
+              << std::endl;
 
-    double w = 2 * M_PI * co / 4000e-9;
+    // double th = M_PI / 2;
+    // double ph = M_PI / 4;
+    double th = M_PI / 3;
+    double ph = M_PI / 4;
+
+    // double dx = 60e-9;
+    // double w = 2 * M_PI * co / 4000e-9;
+
+    // double dx = 1;
+    // double w = 2 * M_PI * co / (4000e-9 / 60e-9);
+
+    double dx = 1;
+    double w = 2 * M_PI * co / 20;
+
     double khat[3] = { sin(th) * cos(ph), sin(th) * sin(ph), cos(ph) };
-    double dxyzt[4] = { 0.99 * sqrt(3) * dx / co, dx, dx, dx };
+    double dxyzt[4] = { dx, dx, dx, 0.99 / sqrt(3) * dx / co };
+
+    int maxiter = 100000;
+    int prec = 9;
 
     using namespace std::placeholders;
-    int prec = 16;
-    double tol = pow(10, -prec);
-
     auto d3 = std::bind(disp3_k, _1, w, khat, dxyzt);
+    std::cout << d3(w / co) << std::endl;
     auto d3_p = std::bind(disp3_k_p, _1, khat, dxyzt);
     auto d3_pp = std::bind(disp3_k_pp, _1, khat, dxyzt);
-    NewtonIterativeProcedure<double> k_solver(d3, d3_p, d3_pp, w / co);
-    // NewtonIterativeProcedure<double> k_solver(d3, d3_p, w / co);
-    // NewtonIterativeProcedure<double> k_solver(d3, w / co);
-    auto k_res = k_solver.solve(1000, tol);
-    print_res(k_res, prec);
-    if (k_res.flag != NIP_SUCCESS) {
-        std::cerr << "ERROR: k failed to converge" << std::endl;
-        abort();
-    }
-    double k = k_res.root;
-    std::cout << "vp/c = " << k / w / co << std::endl;
+    double k = findroot(d3, d3_p, d3_pp, w / co, maxiter, prec);
+    std::cout << std::endl
+              << "vp/c = " << w / k / co << std::endl
+              << std::endl;
 
-    auto d1 = std::bind(disp1_d, _1, dxyzt[0], w, k);
+    auto d1 = std::bind(disp1_d, _1, dxyzt[3], w, k);
     auto d1_p = std::bind(disp1_d_p, _1, k);
     auto d1_pp = std::bind(disp1_d_pp, _1, k);
-    // NewtonIterativeProcedure<double> d_solver(d1, d1_p, d1_pp, dx);
-    NewtonIterativeProcedure<double> d_solver(d1, dx);
-    auto d_res = d_solver.solve(1000, tol);
-    print_res(d_res, prec);
-    std::cout << "d/dx = " << d_res.root / dx << std::endl;
+    double d = findroot(d1, d1_p, d1_pp, dx, maxiter, prec);
+    std::cout << std::endl
+              << "d/dx = " << d / dx << std::endl
+              << std::endl;
 }
