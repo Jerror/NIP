@@ -25,21 +25,23 @@ void print_res(RootResults<T>& res, int prec)
 }
 
 template <typename T>
-void test_NIP(T x0, int maxiter, int prec)
+void test_NIP(std::function<T(T)> f,
+    std::function<T(T)> fp,
+    std::function<T(T)> fpp, T x0, int maxiter, int prec)
 {
     T tol = pow(10, -prec);
     NewtonIterativeProcedure<T>* NIP;
     RootResults<T> res;
 
-    NIP = new NewtonIterativeProcedure<T>(cubic<T>, x0);
+    NIP = new NewtonIterativeProcedure<T>(f, x0);
     res = NIP->solve(maxiter, tol);
     print_res(res, prec);
 
-    NIP = new NewtonIterativeProcedure<T>(cubic<T>, cubic_p<T>, x0);
+    NIP = new NewtonIterativeProcedure<T>(f, fp, x0);
     res = NIP->solve(maxiter, tol);
     print_res(res, prec);
 
-    NIP = new NewtonIterativeProcedure<T>(cubic<T>, cubic_p<T>, cubic_pp<T>, x0);
+    NIP = new NewtonIterativeProcedure<T>(f, fp, fpp, x0);
     res = NIP->solve(maxiter, tol);
     print_res(res, prec);
 }
@@ -122,12 +124,15 @@ double findroot(std::function<double(double)> f,
 
 int main(int argc, char* argv[])
 {
+    std::cout << "Test: solve x^3 - x^2 - x - 1" << std::endl
+              << std::endl;
+
     std::cout << "float" << std::endl;
-    test_NIP<float>(1.5, 20, 8);
+    test_NIP<float>(cubic<float>, cubic_p<float>, cubic_pp<float>, 1.5, 20, 8);
     std::cout << "double" << std::endl;
-    test_NIP<double>(1.5, 40, 16);
+    test_NIP<double>(cubic<double>, cubic_p<double>, cubic_pp<double>, 1.5, 40, 16);
     std::cout << "long double" << std::endl;
-    test_NIP<long double>(1.5, 80, 32);
+    test_NIP<long double>(cubic<long double>, cubic_p<long double>, cubic_pp<long double>, 1.5, 80, 32);
 
     std::cout << std::endl
               << "Dispersion matching" << std::endl
@@ -166,6 +171,14 @@ int main(int argc, char* argv[])
     auto d1_pp = std::bind(disp1_d_pp, _1, k);
     double d = findroot(d1, d1_p, d1_pp, dx, maxiter, prec);
     std::cout << std::setprecision(prec) << "d/dx = " << d / dx << std::endl
-              << std::endl
               << std::setprecision(6);
+
+    std::cout << std::endl
+              << "Compare methods for dispersion matching" << std::endl
+              << std::endl;
+    std::cout << "Solve 3D for k" << std::endl;
+    test_NIP<double>(d3, d3_p, d3_pp, w / co, maxiter, prec);
+    std::cout << std::endl
+              << "Solve 1D for d" << std::endl;
+    test_NIP<double>(d1, d1_p, d1_pp, dx, maxiter, prec);
 }
