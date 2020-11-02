@@ -34,11 +34,12 @@ struct SecantIterGen {
 
     T operator()(IterResults<T>& state)
     {
-        T tmp = state.x - f(state.x) * (state.x - state.xprev) / (f(state.x) - f(state.xprev));
+        T tmp = f(state.x);
+        tmp = state.x - tmp * (state.x - state.xprev) / (tmp - f(state.xprev));
         state.xprev = state.x;
         state.x = tmp;
         state.est_err = fabs((state.x - state.xprev) / state.x);
-        state.f_calls += 3;
+        state.f_calls += 2;
         return state.est_err;
     }
 };
@@ -81,10 +82,11 @@ struct HalleyIterGen {
     T operator()(IterResults<T>& state)
     {
         state.xprev = state.x;
-        T f_fp = f(state.xprev) / fprime(state.xprev);
-        state.x = state.xprev - f_fp / (1 - f_fp * fprime2(state.xprev) / fprime(state.xprev) / 2);
+        T fp = fprime(state.xprev);
+        T f_fp = f(state.xprev) / fp;
+        state.x = state.xprev - f_fp / (1 - f_fp * fprime2(state.xprev) / fp / 2);
         state.est_err = fabs((state.x - state.xprev) / state.x);
-        state.f_calls += 4;
+        state.f_calls += 3;
         return state.est_err;
     }
 };
