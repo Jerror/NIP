@@ -21,7 +21,7 @@ template <typename T>
 void print_res(RootResults<T>& res, int prec)
 {
     std::cout << std::setprecision(prec) << res.root << " " << res.iterations << " " << res.function_calls
-              << " " << res.flag << std::endl;
+              << " " << res.flag << std::setprecision(6) << std::endl;
 }
 
 template <typename T>
@@ -130,45 +130,42 @@ int main(int argc, char* argv[])
     test_NIP<long double>(1.5, 80, 32);
 
     std::cout << std::endl
-              << std::endl
               << "Dispersion matching" << std::endl
               << std::endl;
 
-    // double th = M_PI / 2;
-    // double ph = M_PI / 4;
-    double th = M_PI / 3;
-    double ph = M_PI / 4;
-
-    // double dx = 60e-9;
-    // double w = 2 * M_PI * co / 4000e-9;
-
-    // double dx = 1;
-    // double w = 2 * M_PI * co / (4000e-9 / 60e-9);
-
+    double th, ph;
+    double nlambda;
     double dx = 1;
-    double w = 2 * M_PI * co / 20;
+    int maxiter, prec;
 
-    double khat[3] = { sin(th) * cos(ph), sin(th) * sin(ph), cos(ph) };
+    int next_arg = 1;
+
+    th = M_PI / atof(argv[next_arg++]);
+    ph = M_PI / atof(argv[next_arg++]);
+    nlambda = atof(argv[next_arg++]);
+    if (argc > 6)
+        dx = atof(argv[next_arg++]);
+    maxiter = atoi(argv[next_arg++]);
+    prec = atoi(argv[next_arg++]);
+
+    double w = 2 * M_PI * co / nlambda / dx;
+    double khat[3] = { sin(th) * cos(ph), sin(th) * sin(ph), cos(th) };
     double dxyzt[4] = { dx, dx, dx, 0.99 / sqrt(3) * dx / co };
-
-    int maxiter = 100000;
-    int prec = 9;
 
     using namespace std::placeholders;
     auto d3 = std::bind(disp3_k, _1, w, khat, dxyzt);
-    std::cout << d3(w / co) << std::endl;
     auto d3_p = std::bind(disp3_k_p, _1, khat, dxyzt);
     auto d3_pp = std::bind(disp3_k_pp, _1, khat, dxyzt);
     double k = findroot(d3, d3_p, d3_pp, w / co, maxiter, prec);
-    std::cout << std::endl
-              << "vp/c = " << w / k / co << std::endl
-              << std::endl;
+    std::cout << std::setprecision(prec) << "vp/c = " << w / k / co << std::endl
+              << std::endl
+              << std::setprecision(6);
 
     auto d1 = std::bind(disp1_d, _1, dxyzt[3], w, k);
     auto d1_p = std::bind(disp1_d_p, _1, k);
     auto d1_pp = std::bind(disp1_d_pp, _1, k);
     double d = findroot(d1, d1_p, d1_pp, dx, maxiter, prec);
-    std::cout << std::endl
-              << "d/dx = " << d / dx << std::endl
-              << std::endl;
+    std::cout << std::setprecision(prec) << "d/dx = " << d / dx << std::endl
+              << std::endl
+              << std::setprecision(6);
 }
