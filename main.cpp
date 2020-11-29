@@ -1,9 +1,11 @@
 #include "NIP.hpp"
+#include "TFSF_MND.hpp"
 
 #include <cmath>
 #include <functional>
 #include <iomanip>
 #include <iostream>
+#include <array>
 
 // #define co 2.99792458e8 // Speed of ligth in vacuum [m/s]
 #define co 1.0 // Naturalized
@@ -44,52 +46,6 @@ void test_NIP(std::function<T(T)> f,
     NIP = new NewtonIterativeProcedure<T>(f, fp, fpp, x0);
     res = NIP->solve(maxiter, tol);
     print_res(res, prec);
-}
-
-// 3D dispersion (as function of wavevector magnitude) and derivatives
-
-double disp3_k(double k, double w, double* khat, double* dxyzt)
-{
-    double ret = pow(sin(w * dxyzt[3] / 2) / dxyzt[3] / co, 2);
-    for (int i = 0; i < 3; ++i) {
-        ret -= pow(sin(k * khat[i] * dxyzt[i] / 2) / dxyzt[i], 2);
-    }
-    return ret;
-}
-
-double disp3_k_p(double k, double* khat, double* dxyzt)
-{
-    double ret = 0;
-    for (int i = 0; i < 3; ++i) {
-        ret -= khat[i] * sin(k * khat[i] * dxyzt[i]) / dxyzt[i];
-    }
-    return ret / 2;
-}
-
-double disp3_k_pp(double k, double* khat, double* dxyzt)
-{
-    double ret = 0;
-    for (int i = 0; i < 3; ++i) {
-        ret -= khat[i] * khat[i] * cos(k * khat[i] * dxyzt[i]);
-    }
-    return ret / 2;
-}
-
-// 1D dispersion (as function of grid spacing) and derivatives
-
-double disp1_d(double d, double dt, double w, double k)
-{
-    return pow(sin(w * dt / 2) / dt / co, 2) - pow(sin(k * d / 2) / d, 2);
-}
-
-double disp1_d_p(double d, double k)
-{
-    return (2 * pow(sin(k * d / 2), 2) - 0.5 * d * k * sin(d * k)) / (d * d * d);
-}
-
-double disp1_d_pp(double d, double k)
-{
-    return ((6 - d * d * k * k) * cos(k * d) + 4 * d * k * sin(d * k) - 6) / (2 * d * d * d * d);
 }
 
 double findroot(std::function<double(double)> f,
@@ -154,22 +110,17 @@ int main(int argc, char* argv[])
     prec = atoi(argv[next_arg++]);
 
     double w = 2 * M_PI * co / nlambda / dx;
-    double khat[3] = { sin(th) * cos(ph), sin(th) * sin(ph), cos(th) };
-    double dxyzt[4] = { dx, dx, dx, 0.99 / sqrt(3) * dx / co };
+    std::array<double, 3> khat{ sin(th) * cos(ph), sin(th) * sin(ph), cos(th) };
+    std::array<double, 4> dxyzt{ dx, dx, dx, 0.99 / sqrt(3) * dx / co };
 
-    using namespace std::placeholders;
-    auto d3 = std::bind(disp3_k, _1, w, khat, dxyzt);
-    auto d3_p = std::bind(disp3_k_p, _1, khat, dxyzt);
-    auto d3_pp = std::bind(disp3_k_pp, _1, khat, dxyzt);
-    double k = findroot(d3, d3_p, d3_pp, w / co, maxiter, prec);
+    DispersionWRTk3D d3(w, khat, dxyzt, co);
+    double k = findroot(d3, d3.D(), d3.D2(), w / co, maxiter, prec);
     std::cout << std::setprecision(prec) << "vp/c = " << w / k / co << std::endl
               << std::endl
               << std::setprecision(6);
 
-    auto d1 = std::bind(disp1_d, _1, dxyzt[3], w, k);
-    auto d1_p = std::bind(disp1_d_p, _1, k);
-    auto d1_pp = std::bind(disp1_d_pp, _1, k);
-    double d = findroot(d1, d1_p, d1_pp, dx, maxiter, prec);
+    DispersionWRTd1D d1 = d3.Dispersion1D_to_match(k);
+    double d = findroot(d1, d1.D(), d1.D2(), dx, maxiter, prec);
     std::cout << std::setprecision(prec) << "d/dx = " << d / dx << std::endl
               << std::setprecision(6);
 
@@ -177,8 +128,8 @@ int main(int argc, char* argv[])
               << "Compare methods for dispersion matching" << std::endl
               << std::endl;
     std::cout << "Solve 3D for k" << std::endl;
-    test_NIP<double>(d3, d3_p, d3_pp, w / co, maxiter, prec);
+    test_NIP<double>(d3, d3.D(), d3.D2(), w / co, maxiter, prec);
     std::cout << std::endl
               << "Solve 1D for d" << std::endl;
-    test_NIP<double>(d1, d1_p, d1_pp, dx, maxiter, prec);
+    test_NIP<double>(d1, d1.D(), d1.D2(), dx, maxiter, prec);
 }
