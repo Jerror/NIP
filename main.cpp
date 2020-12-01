@@ -9,6 +9,7 @@
 
 // #define co 2.99792458e8 // Speed of ligth in vacuum [m/s]
 #define co 1.0 // Naturalized
+#define LOG10_2 0.301029995
 
 template <typename T>
 T cubic(T x) { return x * x * x - x * x - x - 1; }
@@ -22,7 +23,7 @@ T cubic_pp(T x) { return 6 * x - 2; }
 template <typename T>
 void print_res(RootResults<T>& res, int prec)
 {
-    std::cout << std::setprecision(prec) << res.root << " " << res.iterations << " " << res.function_calls
+    std::cout << std::setprecision(int(LOG10_2 * prec + 1)) << res.root << " " << res.iterations << " " << res.function_calls
               << " " << res.flag << std::setprecision(6) << std::endl;
 }
 
@@ -31,7 +32,7 @@ void test_NIP(std::function<T(T)> f,
     std::function<T(T)> fp,
     std::function<T(T)> fpp, T x0, int maxiter, int prec)
 {
-    T tol = pow(10, -prec);
+    T tol = pow(2, -prec);
     NewtonIterativeProcedure<T>* NIP;
     RootResults<T> res;
 
@@ -52,7 +53,7 @@ double findroot(std::function<double(double)> f,
     std::function<double(double)> fp,
     std::function<double(double)> fpp, double x0, int maxiter, int prec)
 {
-    double tol = pow(10, -prec);
+    double tol = pow(2, -prec);
     RootResults<double> res;
     NewtonIterativeProcedure<double>* solver;
 
@@ -115,13 +116,13 @@ int main(int argc, char* argv[])
 
     DispersionWRTk3D d3(w, khat, dxyzt, co);
     double k = findroot(d3, d3.D(), d3.D2(), w / co, maxiter, prec);
-    std::cout << std::setprecision(prec) << "vp/c = " << w / k / co << std::endl
+    std::cout << std::setprecision(LOG10_2 * prec + 1) << "vp/c = " << w / k / co << std::endl
               << std::endl
               << std::setprecision(6);
 
     DispersionWRTd1D d1 = d3.Dispersion1D_to_match(k);
     double d = findroot(d1, d1.D(), d1.D2(), dx, maxiter, prec);
-    std::cout << std::setprecision(prec) << "d/dx = " << d / dx << std::endl
+    std::cout << std::setprecision(LOG10_2 * prec + 1) << "d/dx = " << d / dx << std::endl
               << std::setprecision(6);
 
     std::cout << std::endl
