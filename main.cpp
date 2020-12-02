@@ -79,58 +79,118 @@ double findroot(std::function<double(double)> f,
     return res.root;
 }
 
-int main(int argc, char* argv[])
-{
-    std::cout << "Test: solve x^3 - x^2 - x - 1" << std::endl
-              << std::endl;
+void test_cubic() {
+  std::cout << "Test: solve x^3 - x^2 - x - 1" << std::endl << std::endl;
 
-    std::cout << "float" << std::endl;
-    test_NIP<float>(cubic<float>, cubic_p<float>, cubic_pp<float>, 1.5, 20, 8);
-    std::cout << "double" << std::endl;
-    test_NIP<double>(cubic<double>, cubic_p<double>, cubic_pp<double>, 1.5, 40, 16);
-    std::cout << "long double" << std::endl;
-    test_NIP<long double>(cubic<long double>, cubic_p<long double>, cubic_pp<long double>, 1.5, 80, 32);
+  std::cout << "float" << std::endl;
+  test_NIP<float>(cubic<float>, cubic_p<float>, cubic_pp<float>, 1.5, 20, 20);
+  std::cout << "double" << std::endl;
+  test_NIP<double>(cubic<double>, cubic_p<double>, cubic_pp<double>, 1.5, 40,
+                   50);
+  std::cout << "long double" << std::endl;
+  test_NIP<long double>(cubic<long double>, cubic_p<long double>,
+                        cubic_pp<long double>, 1.5, 80, 112);
+}
 
+void test_dispersion() {
     std::cout << std::endl
               << "Dispersion matching" << std::endl
               << std::endl;
 
-    double th, ph;
-    double nlambda;
+    int maxiter = 50;
     double dx = 1;
-    int maxiter, prec;
 
-    int next_arg = 1;
+    int n_N = 100;
+    int m_N = 100;
 
-    th = M_PI / atof(argv[next_arg++]);
-    ph = M_PI / atof(argv[next_arg++]);
-    nlambda = atof(argv[next_arg++]);
-    if (argc > 6)
-        dx = atof(argv[next_arg++]);
-    maxiter = atoi(argv[next_arg++]);
-    prec = atoi(argv[next_arg++]);
+    for(int i = 3; i < 100; ++i)
+    {
+        double nlambda = i;
+        for(int n = 0; n < n_N; ++n)
+        {
+            double th = M_PI*(n+0.5)/n_N;
+            for(int m = 0; m < m_N; ++m)
+            {
+                double ph = M_PI*(m+0.5)/m_N;
 
-    double w = 2 * M_PI * co / nlambda / dx;
-    std::array<double, 3> khat{ sin(th) * cos(ph), sin(th) * sin(ph), cos(th) };
-    std::array<double, 4> dxyzt{ dx, dx, dx, 0.99 / sqrt(3) * dx / co };
+                double w = 2 * M_PI * co / nlambda / dx;
+                std::array<double, 3> khat{ sin(th) * cos(ph), sin(th) * sin(ph), cos(th) };
+                std::array<double, 4> dxyzt{dx, dx, dx,
+                    0.99 / sqrt(3) * dx / co};
 
-    DispersionWRTk3D d3(w, khat, dxyzt, co);
-    double k = findroot(d3, d3.D(), d3.D2(), w / co, maxiter, prec);
-    std::cout << std::setprecision(LOG10_2 * prec + 1) << "vp/c = " << w / k / co << std::endl
-              << std::endl
-              << std::setprecision(6);
+                RootResults<double> kres, dres;
+                int kprec, dprec;
 
-    DispersionWRTd1D d1 = d3.Dispersion1D_to_match(k);
-    double d = findroot(d1, d1.D(), d1.D2(), dx, maxiter, prec);
-    std::cout << std::setprecision(LOG10_2 * prec + 1) << "d/dx = " << d / dx << std::endl
-              << std::setprecision(6);
+                DispersionWRTk3D d3(w, khat, dxyzt, co);
+                NewtonIterativeProcedure<double> ksolver(d3, w / co);
+                for(kprec = 52; kprec > 0; --kprec)
+                {
+                    kres = ksolver.solve(maxiter, pow(2, -kprec));
+                    if (kres.flag == NIP_SUCCESS)
+                        break;
+                }
+                std::cout<<kprec<<", ";
 
-    std::cout << std::endl
-              << "Compare methods for dispersion matching" << std::endl
-              << std::endl;
-    std::cout << "Solve 3D for k" << std::endl;
-    test_NIP<double>(d3, d3.D(), d3.D2(), w / co, maxiter, prec);
-    std::cout << std::endl
-              << "Solve 1D for d" << std::endl;
-    test_NIP<double>(d1, d1.D(), d1.D2(), dx, maxiter, prec);
+                DispersionWRTd1D d1 = d3.Dispersion1D_to_match(kres.root);
+                NewtonIterativeProcedure<double> dsolver(d1, dx);
+                for(dprec = 52; dprec > 0; --dprec)
+                {
+                    dres = dsolver.solve(maxiter, pow(2, -dprec));
+                    if (dres.flag == NIP_SUCCESS)
+                        break;
+                }
+                std::cout<<dprec<<std::endl;
+            }
+        }
+    }
+}
+
+int main(int argc, char* argv[])
+{
+    // test_cubic();
+
+    test_dispersion();
+
+    // std::cout << std::endl
+    //           << "Dispersion matching" << std::endl
+    //           << std::endl;
+
+    // double th, ph;
+    // double nlambda;
+    // double dx = 1;
+    // int maxiter, prec;
+
+    // int next_arg = 1;
+
+    // th = M_PI / atof(argv[next_arg++]);
+    // ph = M_PI / atof(argv[next_arg++]);
+    // nlambda = atof(argv[next_arg++]);
+    // if (argc > 6)
+    //     dx = atof(argv[next_arg++]);
+    // maxiter = atoi(argv[next_arg++]);
+    // prec = atoi(argv[next_arg++]);
+
+    // double w = 2 * M_PI * co / nlambda / dx;
+    // std::array<double, 3> khat{ sin(th) * cos(ph), sin(th) * sin(ph), cos(th) };
+    // std::array<double, 4> dxyzt{ dx, dx, dx, 0.99 / sqrt(3) * dx / co };
+
+    // DispersionWRTk3D d3(w, khat, dxyzt, co);
+    // double k = findroot(d3, d3.D(), d3.D2(), w / co, maxiter, prec);
+    // std::cout << std::setprecision(LOG10_2 * prec + 1) << "vp/c = " << w / k / co << std::endl
+    //           << std::endl
+    //           << std::setprecision(6);
+
+    // DispersionWRTd1D d1 = d3.Dispersion1D_to_match(k);
+    // double d = findroot(d1, d1.D(), d1.D2(), dx, maxiter, prec);
+    // std::cout << std::setprecision(LOG10_2 * prec + 1) << "d/dx = " << d / dx << std::endl
+    //           << std::setprecision(6);
+
+    // std::cout << std::endl
+    //           << "Compare methods for dispersion matching" << std::endl
+    //           << std::endl;
+    // std::cout << "Solve 3D for k" << std::endl;
+    // test_NIP<double>(d3, d3.D(), d3.D2(), w / co, maxiter, prec);
+    // std::cout << std::endl
+    //           << "Solve 1D for d" << std::endl;
+    // test_NIP<double>(d1, d1.D(), d1.D2(), dx, maxiter, prec);
 }
