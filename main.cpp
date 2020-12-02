@@ -100,8 +100,10 @@ void test_dispersion() {
     int maxiter = 50;
     double dx = 1;
 
-    int n_N = 100;
-    int m_N = 100;
+    int n_N = 1000;
+    int m_N = 1000;
+
+    int failures = 0;
 
     for(int i = 3; i < 100; ++i)
     {
@@ -120,26 +122,43 @@ void test_dispersion() {
 
                 RootResults<double> kres, dres;
                 int kprec, dprec;
+                int x, y;
 
                 DispersionWRTk3D d3(w, khat, dxyzt, co);
-                NewtonIterativeProcedure<double> ksolver(d3, w / co);
                 for(kprec = 52; kprec > 0; --kprec)
                 {
+                  for (x = 0; x < 20; ++x) {
+                    NewtonIterativeProcedure<double> ksolver(
+                        d3, w / co * (20 - x) / 30);
+                    // NewtonIterativeProcedure<double> ksolver(d3, d3.D(),
+                    // d3.D2(), w / co * (20 - x)/30);
                     kres = ksolver.solve(maxiter, pow(2, -kprec));
                     if (kres.flag == NIP_SUCCESS)
-                        break;
+                      goto k_done;
+                  }
                 }
-                std::cout<<kprec<<", ";
+            k_done:
 
                 DispersionWRTd1D d1 = d3.Dispersion1D_to_match(kres.root);
-                NewtonIterativeProcedure<double> dsolver(d1, dx);
                 for(dprec = 52; dprec > 0; --dprec)
                 {
+                  for (y = 0; y < 20; ++y) {
+                    NewtonIterativeProcedure<double> dsolver(d1, dx * (20 - y) /
+                                                                     30);
+                    // NewtonIterativeProcedure<double> dsolver(d1, d1.D(),
+                    // d1.D2(), dx * (20 - y)/30);
                     dres = dsolver.solve(maxiter, pow(2, -dprec));
                     if (dres.flag == NIP_SUCCESS)
-                        break;
+                      goto d_done;
+                  }
                 }
-                std::cout<<dprec<<std::endl;
+            d_done:
+
+                if ((kprec < 52) || (dprec < 52))
+                    std::cout<<kprec<<", "<<dprec<<std::endl;
+
+                if ((kprec == 0) || (dprec == 0))
+                    std::cerr<<++failures<<std::endl;
             }
         }
     }
